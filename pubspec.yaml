@@ -1,6 +1,8 @@
 name: widgets_kit
 description: Send data from Flutter to native Android and iOS home screen widgets, update them, and handle taps with Dart code.
 version: 0.1.0
+repository: https://github.com/open-source-collabs/widgets_kit
+issue_tracker: https://github.com/open-source-collabs/widgets_kit/issues
 topics:
   - home-screen-widget
   - native
