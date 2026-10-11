@@ -1,6 +1,6 @@
 name: widgets_kit
-description: Send data from Flutter to native Android and iOS home screen widgets, update them, and handle taps with Dart code.
-version: 0.1.0
+description: Send data from Flutter to native Android and iOS home screen widgets, update them, and handle taps with Dart code. A safe no-op on other platforms.
+version: 0.1.1
 repository: https://github.com/open-source-collabs/widgets_kit
 issue_tracker: https://github.com/open-source-collabs/widgets_kit/issues
 screenshots:
@@ -8,6 +8,8 @@ screenshots:
     path: screenshots/widget-gallery.png
   - description: 'The example widget placed on an iOS home screen.'
     path: screenshots/home-screen.png
+  - description: 'The example Glance widget on an Android home screen, showing text and a rendered Flutter image.'
+    path: screenshots/android-home-screen.png
 
 topics:
   - home-screen-widget
@@ -21,6 +23,8 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_web_plugins:
     sdk: flutter
   path_provider: ^2.1.3
   path_provider_foundation: ^2.4.0
@@ -42,3 +46,12 @@ flutter:
         pluginClass: WidgetsKitPlugin
       ios:
         pluginClass: WidgetsKitPlugin
+      macos:
+        dartPluginClass: WidgetsKitMacOS
+      windows:
+        dartPluginClass: WidgetsKitWindows
+      linux:
+        dartPluginClass: WidgetsKitLinux
+      web:
+        pluginClass: WidgetsKitWeb
+        fileName: src/web/widgets_kit_web.dart

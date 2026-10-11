@@ -1,3 +1,12 @@
+## 0.1.1
+
+- Added support for macOS, Windows, Linux and the web as safe no-ops, so an app that targets them can depend on the plugin. Calls return a default (`false`, `null`, or an empty list) and nothing reaches a platform channel.
+- Added `WidgetsKit.isSupported`, which is `true` only on Android and iOS.
+- `saveFile`, `saveImage` and `renderFlutterWidget` throw an `UnsupportedError` on the unsupported platforms.
+- Replaced `dart:io` `Platform` use in the plugin with `defaultTargetPlatform` so it is web-safe.
+- Added an Android home screen screenshot.
+- The example app now builds for macOS and the web.
+
 ## 0.1.0
 
 - Initial release of widgets_kit, a fork of [home_widget](https://github.com/ABausG/home_widget) 0.10.0 by Anton Borries (BSD-3-Clause).

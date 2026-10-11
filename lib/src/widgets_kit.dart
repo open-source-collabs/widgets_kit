@@ -18,6 +18,22 @@ class WidgetsKit {
   /// The AppGroupId used for iOS Widgets
   static String? groupId;
 
+  /// Whether home screen widgets exist on the platform the app is running on.
+  ///
+  /// This is `true` on Android and iOS only. On every other platform, including the web, the
+  /// plugin does nothing: calls that return a value complete with a safe default (`false`,
+  /// `null`, or an empty list) and never reach a platform. The helpers that must produce a
+  /// file ([saveFile], [saveImage] and [renderFlutterWidget]) throw an [UnsupportedError]
+  /// instead, so check this first.
+  static bool get isSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  static Never _unsupported(String method) => throw UnsupportedError(
+    'WidgetsKit.$method needs Android or iOS. Check WidgetsKit.isSupported first.',
+  );
+
   /// Save [data] to the Widget Storage
   ///
   /// Returns whether the data was saved or not
@@ -27,6 +43,7 @@ class WidgetsKit {
     bool deleteFile = true,
     String? appGroupId,
   }) async {
+    if (!isSupported) return false;
     if (deleteFile && data == null) {
       final raw = await getWidgetData<dynamic>(id, appGroupId: appGroupId);
       if (raw is String && _isWidgetsKitManagedFilePath(raw)) {
@@ -63,6 +80,7 @@ class WidgetsKit {
     String? iOSName,
     String? qualifiedAndroidName,
   }) {
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('updateWidget', {
       'name': name,
       'android': androidName,
@@ -101,6 +119,7 @@ class WidgetsKit {
     String? androidName,
     String? qualifiedAndroidName,
   }) {
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('updateWidgetPreview', {
       'name': name,
       'android': androidName,
@@ -157,6 +176,7 @@ class WidgetsKit {
     String? androidName,
     String? qualifiedAndroidName,
   }) {
+    if (!isSupported) return Future.value(false);
     final millis = updateTimes
         .map((time) => time.millisecondsSinceEpoch)
         .toList();
@@ -186,6 +206,7 @@ class WidgetsKit {
     String? androidName,
     String? qualifiedAndroidName,
   }) {
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('cancelScheduledWidgetUpdates', {
       'name': name,
       'android': androidName,
@@ -212,11 +233,13 @@ class WidgetsKit {
   /// alarms, which the system may delay (typically by minutes, more while the
   /// device is dozing).
   static Future<bool?> canScheduleExactWidgetUpdates() {
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('canScheduleExactWidgetUpdates');
   }
 
   /// Determines whether pinning HomeScreen Widget is supported.
   static Future<bool?> isRequestPinWidgetSupported() {
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('isRequestPinWidgetSupported');
   }
 
@@ -235,6 +258,7 @@ class WidgetsKit {
     // String? iOSName,
     String? qualifiedAndroidName,
   }) {
+    if (!isSupported) return Future.value();
     return _channel.invokeMethod('requestPinWidget', {
       'name': name,
       'android': androidName,
@@ -251,6 +275,7 @@ class WidgetsKit {
     T? defaultValue,
     String? appGroupId,
   }) {
+    if (!isSupported) return Future.value(defaultValue);
     final arguments = <String, dynamic>{
       'id': id,
       'defaultValue': defaultValue,
@@ -263,11 +288,13 @@ class WidgetsKit {
   /// communication between the App and the Widget Extension
   static Future<bool?> setAppGroupId(String groupId) {
     WidgetsKit.groupId = groupId;
+    if (!isSupported) return Future.value(false);
     return _channel.invokeMethod('setAppGroupId', {'groupId': groupId});
   }
 
   /// Checks if the App was initially launched via the Widget
   static Future<Uri?> initiallyLaunchedFromWidgetsKit() {
+    if (!isSupported) return Future.value();
     return _channel
         .invokeMethod<String>('initiallyLaunchedFromWidgetsKit')
         .then(_handleReceivedData);
@@ -276,6 +303,7 @@ class WidgetsKit {
   /// Checks if the App was initially launched via the Widget configure action on Android.
   /// Only works on Android. Ensure to call `WidgetsKit.finishWidgetsKitConfigure` once you want to complete the configuration
   static Future<String?> initiallyLaunchedFromWidgetsKitConfigure() {
+    if (!isSupported) return Future.value();
     return _channel.invokeMethod<String>(
       'initiallyLaunchedFromWidgetsKitConfigure',
     );
@@ -284,11 +312,13 @@ class WidgetsKit {
   /// Ends the Widget configure action on Android.
   /// This should be called when finishing up a Widget Configuration that was initiated based on `WidgetsKit.initiallyLaunchedFromWidgetsKitConfigure`
   static Future<void> finishWidgetsKitConfigure() {
+    if (!isSupported) return Future.value();
     return _channel.invokeMethod<void>('finishWidgetsKitConfigure');
   }
 
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
+    if (!isSupported) return const Stream<Uri?>.empty();
     return _eventChannel.receiveBroadcastStream().map<Uri?>(
       _handleReceivedData,
     );
@@ -336,6 +366,7 @@ class WidgetsKit {
             "@pragma('vm:entry-point')",
       );
     }
+    if (!isSupported) return false;
     final args = <dynamic>[
       ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
       callbackHandle.toRawHandle(),
@@ -397,13 +428,14 @@ class WidgetsKit {
     String extension = 'bin',
     String? appGroupId,
   }) async {
+    if (!isSupported) _unsupported('saveFile');
     final ext = _normalizeExtension(extension);
     _validateKey(key);
 
     try {
       late final String? directory;
       // coverage:ignore-start
-      if (Platform.isIOS) {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
         final PathProviderFoundation provider = PathProviderFoundation();
         final resolvedGroupId = appGroupId ?? WidgetsKit.groupId;
         assert(
@@ -449,6 +481,7 @@ class WidgetsKit {
     ImageConfiguration configuration = ImageConfiguration.empty,
     String? appGroupId,
   }) async {
+    if (!isSupported) _unsupported('saveImage');
     _validateKey(key);
     final completer = Completer<Uint8List>();
     final stream = imageProvider.resolve(configuration);
@@ -507,6 +540,7 @@ class WidgetsKit {
     double? pixelRatio,
     String? appGroupId,
   }) async {
+    if (!isSupported) _unsupported('renderFlutterWidget');
     pixelRatio ??=
         PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
 
@@ -606,6 +640,7 @@ class WidgetsKit {
   /// currently pinned on the home screen.
   /// Returns an empty list if no widgets are pinned.
   static Future<List<WidgetsKitInfo>> getInstalledWidgets() async {
+    if (!isSupported) return const <WidgetsKitInfo>[];
     final result =
         await _channel.invokeMethod('getInstalledWidgets') as List<dynamic>?;
     return result

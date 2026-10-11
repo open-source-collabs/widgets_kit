@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -25,7 +24,7 @@ void callbackDispatcher() async {
           name: 'WidgetsKitExampleProvider',
           iOSName: 'WidgetsKitExample',
         ),
-        if (Platform.isAndroid)
+        if (defaultTargetPlatform == TargetPlatform.android)
           WidgetsKit.updateWidget(
             qualifiedAndroidName:
                 'com.widgetskit.widgets_kit_example.glance.WidgetsKitReceiver',
@@ -57,7 +56,7 @@ Future<void> interactiveCallback(Uri? data) async {
       name: 'WidgetsKitExampleProvider',
       iOSName: 'WidgetsKitExample',
     );
-    if (Platform.isAndroid) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       await WidgetsKit.updateWidget(
         qualifiedAndroidName:
             'com.widgetskit.widgets_kit_example.glance.WidgetsKitReceiver',
@@ -68,7 +67,10 @@ Future<void> interactiveCallback(Uri? data) async {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  // Background work only exists on Android and iOS. Everywhere else the plugin is a no-op.
+  if (WidgetsKit.isSupported) {
+    Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  }
   runApp(const MaterialApp(home: MyApp()));
 }
 
@@ -112,11 +114,13 @@ class _MyAppState extends State<MyApp> {
       return await Future.wait([
         WidgetsKit.saveWidgetData<String>('title', _titleController.text),
         WidgetsKit.saveWidgetData<String>('message', _messageController.text),
-        WidgetsKit.renderFlutterWidget(
-          const Icon(Icons.flutter_dash, size: 200),
-          logicalSize: const Size(200, 200),
-          key: 'dashIcon',
-        ),
+        // Rendering to a file needs a platform with home screen widgets.
+        if (WidgetsKit.isSupported)
+          WidgetsKit.renderFlutterWidget(
+            const Icon(Icons.flutter_dash, size: 200),
+            logicalSize: const Size(200, 200),
+            key: 'dashIcon',
+          ),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
@@ -130,7 +134,7 @@ class _MyAppState extends State<MyApp> {
           name: 'WidgetsKitExampleProvider',
           iOSName: 'WidgetsKitExample',
         ),
-        if (Platform.isAndroid)
+        if (defaultTargetPlatform == TargetPlatform.android)
           WidgetsKit.updateWidget(
             qualifiedAndroidName:
                 'com.widgetskit.widgets_kit_example.glance.WidgetsKitReceiver',
@@ -195,6 +199,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startBackgroundUpdate() {
+    if (!WidgetsKit.isSupported) return;
     Workmanager().registerPeriodicTask(
       '1',
       'widgetBackgroundUpdate',
@@ -203,6 +208,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _stopBackgroundUpdate() {
+    if (!WidgetsKit.isSupported) return;
     Workmanager().cancelByUniqueName('1');
   }
 
@@ -212,7 +218,7 @@ class _MyAppState extends State<MyApp> {
       if (!mounted) return;
 
       String getText(WidgetsKitInfo widget) {
-        if (Platform.isIOS) {
+        if (defaultTargetPlatform == TargetPlatform.iOS) {
           return 'iOS Family: ${widget.iOSFamily}, iOS Kind: ${widget.iOSKind}';
         } else {
           return 'Android Widget id: ${widget.androidWidgetId}, '
@@ -283,12 +289,12 @@ class _MyAppState extends State<MyApp> {
                 onPressed: _checkForWidgetLaunch,
                 child: const Text('Check For Widget Launch'),
               ),
-              if (Platform.isAndroid)
+              if (defaultTargetPlatform == TargetPlatform.android)
                 ElevatedButton(
                   onPressed: _startBackgroundUpdate,
                   child: const Text('Update in background'),
                 ),
-              if (Platform.isAndroid)
+              if (defaultTargetPlatform == TargetPlatform.android)
                 ElevatedButton(
                   onPressed: _stopBackgroundUpdate,
                   child: const Text('Stop updating in background'),

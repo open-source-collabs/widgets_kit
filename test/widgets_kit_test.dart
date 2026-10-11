@@ -592,6 +592,82 @@ void main() {
     );
   });
 
+  group('unsupported platforms', () {
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    test('isSupported is true only on Android and iOS', () {
+      for (final platform in TargetPlatform.values) {
+        debugDefaultTargetPlatformOverride = platform;
+        final expected =
+            platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+        expect(WidgetsKit.isSupported, expected, reason: '$platform');
+      }
+    });
+
+    test('calls return safe values and never reach the platform', () async {
+      expect(await WidgetsKit.saveWidgetData<String>('id', 'x'), false);
+      expect(await WidgetsKit.getWidgetData<String>('id'), isNull);
+      expect(
+        await WidgetsKit.getWidgetData<String>('id', defaultValue: 'fallback'),
+        'fallback',
+      );
+      expect(await WidgetsKit.updateWidget(name: 'Provider'), false);
+      expect(await WidgetsKit.updateWidgetPreview(name: 'Provider'), false);
+      expect(
+        await WidgetsKit.scheduleWidgetUpdates([DateTime(2030)], name: 'P'),
+        false,
+      );
+      expect(await WidgetsKit.cancelScheduledWidgetUpdates(name: 'P'), false);
+      expect(await WidgetsKit.canScheduleExactWidgetUpdates(), false);
+      expect(await WidgetsKit.isRequestPinWidgetSupported(), false);
+      await WidgetsKit.requestPinWidget(name: 'P');
+      expect(await WidgetsKit.setAppGroupId('group.example'), false);
+      expect(await WidgetsKit.initiallyLaunchedFromWidgetsKit(), isNull);
+      expect(
+        await WidgetsKit.initiallyLaunchedFromWidgetsKitConfigure(),
+        isNull,
+      );
+      await WidgetsKit.finishWidgetsKitConfigure();
+      expect(await WidgetsKit.getInstalledWidgets(), isEmpty);
+      expect(await WidgetsKit.widgetClicked.isEmpty, isTrue);
+      expect(
+        // ignore: deprecated_member_use_from_same_package
+        await WidgetsKit.registerBackgroundCallback(testCallback),
+        false,
+      );
+      expect(
+        await WidgetsKit.registerInteractivityCallback(testCallback),
+        false,
+      );
+
+      expect(
+        passedArguments.isCompleted,
+        isFalse,
+        reason: 'nothing may be sent to a platform that has no widgets',
+      );
+    });
+
+    test('helpers that produce a file say the platform is unsupported', () async {
+      await expectLater(
+        WidgetsKit.saveFile('key', Uint8List(1)),
+        throwsUnsupportedError,
+      );
+      await expectLater(
+        WidgetsKit.renderFlutterWidget(
+          const SizedBox(width: 1, height: 1),
+          key: 'key',
+        ),
+        throwsUnsupportedError,
+      );
+    });
+  });
+
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

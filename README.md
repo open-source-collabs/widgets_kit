@@ -13,6 +13,24 @@ widgets_kit does **not** let you write the widget itself in Flutter. The widget 
 - Ask the launcher to pin a widget (Android only, API 26+)
 - List the widgets the user has installed
 
+## Platform support
+
+| Platform | Home screen widgets | What the plugin does |
+|---|---|---|
+| Android | Yes | Full support |
+| iOS | Yes | Full support |
+| macOS, Windows, Linux, web | No | Safe no-op, so one codebase can target every platform |
+
+On the platforms without widgets, calls return a safe default instead of throwing: `false` for the `bool?` methods, `null` for reads (or your `defaultValue`), an empty list for `getInstalledWidgets`, and an empty `widgetClicked` stream. Nothing reaches a platform channel.
+
+Three helpers produce a file and cannot return anything meaningful there, so they throw an `UnsupportedError`: `saveFile`, `saveImage` and `renderFlutterWidget`. Check `WidgetsKit.isSupported` before calling them:
+
+```dart
+if (WidgetsKit.isSupported) {
+  await WidgetsKit.renderFlutterWidget(widget, key: 'preview');
+}
+```
+
 ## Requirements
 
 - Dart 3.10 or newer
