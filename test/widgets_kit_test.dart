@@ -594,18 +594,20 @@ void main() {
 
   group('unsupported platforms', () {
     setUp(() {
-      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      debugDefaultTargetPlatformOverride = TargetPlatform.fuchsia;
     });
 
     tearDown(() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    test('isSupported is true only on Android and iOS', () {
+    test('isSupported is true only on Android, iOS and macOS', () {
       for (final platform in TargetPlatform.values) {
         debugDefaultTargetPlatformOverride = platform;
         final expected =
-            platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+            platform == TargetPlatform.android ||
+            platform == TargetPlatform.iOS ||
+            platform == TargetPlatform.macOS;
         expect(WidgetsKit.isSupported, expected, reason: '$platform');
       }
     });
@@ -667,6 +669,82 @@ void main() {
       );
     });
   });
+
+  for (final platform in [TargetPlatform.windows, TargetPlatform.linux]) {
+    group('file store on $platform', () {
+      late Directory storage;
+
+      setUp(() {
+        debugDefaultTargetPlatformOverride = platform;
+        storage = Directory.systemTemp.createTempSync('widgets_kit_store');
+        WidgetsKit.debugStorageDirectory = storage;
+      });
+
+      tearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        WidgetsKit.debugStorageDirectory = null;
+        storage.deleteSync(recursive: true);
+      });
+
+      test('has no home screen widgets but keeps a data store', () {
+        expect(WidgetsKit.isSupported, isFalse);
+      });
+
+      test('saved data is read back with its type', () async {
+        expect(await WidgetsKit.saveWidgetData<String>('title', 'Hi'), true);
+        expect(await WidgetsKit.saveWidgetData<int>('count', 7), true);
+        expect(await WidgetsKit.saveWidgetData<double>('price', 12.5), true);
+        expect(await WidgetsKit.saveWidgetData<bool>('on', true), true);
+
+        expect(await WidgetsKit.getWidgetData<String>('title'), 'Hi');
+        expect(await WidgetsKit.getWidgetData<int>('count'), 7);
+        expect(await WidgetsKit.getWidgetData<double>('price'), 12.5);
+        expect(await WidgetsKit.getWidgetData<bool>('on'), true);
+      });
+
+      test('data survives a restart because it is written to disk', () async {
+        await WidgetsKit.saveWidgetData<String>('title', 'persisted');
+
+        final file = File('${storage.path}/widget_data.json');
+        expect(file.existsSync(), isTrue);
+        expect(file.readAsStringSync(), contains('persisted'));
+      });
+
+      test('saving null removes the value', () async {
+        await WidgetsKit.saveWidgetData<String>('gone', 'x');
+
+        await WidgetsKit.saveWidgetData<String>('gone', null);
+
+        expect(
+          await WidgetsKit.getWidgetData<String>('gone', defaultValue: 'd'),
+          'd',
+        );
+      });
+
+      test('concurrent saves keep every value', () async {
+        await Future.wait([
+          for (var i = 0; i < 20; i++)
+            WidgetsKit.saveWidgetData<int>('key$i', i),
+        ]);
+
+        for (var i = 0; i < 20; i++) {
+          expect(await WidgetsKit.getWidgetData<int>('key$i'), i);
+        }
+      });
+
+      test('calls that need a widget system still answer false', () async {
+        expect(await WidgetsKit.updateWidget(name: 'P'), false);
+        expect(await WidgetsKit.getInstalledWidgets(), isEmpty);
+      });
+
+      test('saveFile writes the file and stores its path', () async {
+        final path = await WidgetsKit.saveFile('logo', Uint8List.fromList([1, 2, 3]));
+
+        expect(File(path).readAsBytesSync(), [1, 2, 3]);
+        expect(await WidgetsKit.getWidgetData<String>('logo'), path);
+      });
+    });
+  }
 
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {

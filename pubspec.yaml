@@ -1,5 +1,5 @@
 name: widgets_kit
-description: Send data from Flutter to native Android and iOS home screen widgets, update them, and handle taps with Dart code. A safe no-op on other platforms.
+description: Send data from Flutter to native home screen widgets on Android, iOS and macOS, update them, and handle taps with Dart code.
 version: 0.1.1
 repository: https://github.com/open-source-collabs/widgets_kit
 issue_tracker: https://github.com/open-source-collabs/widgets_kit/issues
@@ -47,7 +47,7 @@ flutter:
       ios:
         pluginClass: WidgetsKitPlugin
       macos:
-        dartPluginClass: WidgetsKitMacOS
+        pluginClass: WidgetsKitPlugin
       windows:
         dartPluginClass: WidgetsKitWindows
       linux:

@@ -1,11 +1,13 @@
 ## 0.1.1
 
-- Added support for macOS, Windows, Linux and the web as safe no-ops, so an app that targets them can depend on the plugin. Calls return a default (`false`, `null`, or an empty list) and nothing reaches a platform channel.
-- Added `WidgetsKit.isSupported`, which is `true` only on Android and iOS.
-- `saveFile`, `saveImage` and `renderFlutterWidget` throw an `UnsupportedError` on the unsupported platforms.
+- Added macOS support through WidgetKit: saving and reading data in an app group, reloading widgets, listing installed widgets, and widget taps through `widgetClicked`.
+- Added Windows and Linux support for data: `saveWidgetData`, `getWidgetData`, `saveFile`, `saveImage` and `renderFlutterWidget` keep their data in `widget_data.json` in the app support directory. Widget refresh is not available there.
+- Added the web as a safe no-op. Calls return a default (`false`, `null`, or an empty list) and nothing reaches a platform channel.
+- Added `WidgetsKit.isSupported`, which is `true` on Android, iOS and macOS.
+- `saveFile`, `saveImage` and `renderFlutterWidget` throw an `UnsupportedError` where there is no widget system and no storage, which is the web.
 - Replaced `dart:io` `Platform` use in the plugin with `defaultTargetPlatform` so it is web-safe.
 - Added an Android home screen screenshot.
-- The example app now builds for macOS and the web.
+- The example app now builds for macOS and the web, and has a macOS integration test.
 
 ## 0.1.0
 

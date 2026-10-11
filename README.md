@@ -9,21 +9,38 @@ widgets_kit does **not** let you write the widget itself in Flutter. The widget 
 - Send data from Flutter to a home screen widget and refresh it
 - Render a Flutter widget to an image and show it in a home screen widget
 - Interactive widgets that call Dart code
-- Schedule widget updates
+- Schedule widget updates (Android)
 - Ask the launcher to pin a widget (Android only, API 26+)
 - List the widgets the user has installed
 
 ## Platform support
 
-| Platform | Home screen widgets | What the plugin does |
+| Platform | Widgets | What the plugin does |
 |---|---|---|
 | Android | Yes | Full support |
 | iOS | Yes | Full support |
-| macOS, Windows, Linux, web | No | Safe no-op, so one codebase can target every platform |
+| macOS | Yes (WidgetKit, macOS 11+) | Saves data, reloads widgets, lists installed widgets, reports widget taps |
+| Windows | Data only | Saves data to a JSON file. Widget refresh is not available |
+| Linux | Data only | Saves data to a JSON file. Widget refresh is not available |
+| Web | No | Safe no-op |
 
-On the platforms without widgets, calls return a safe default instead of throwing: `false` for the `bool?` methods, `null` for reads (or your `defaultValue`), an empty list for `getInstalledWidgets`, and an empty `widgetClicked` stream. Nothing reaches a platform channel.
+`WidgetsKit.isSupported` is `true` on Android, iOS and macOS.
 
-Three helpers produce a file and cannot return anything meaningful there, so they throw an `UnsupportedError`: `saveFile`, `saveImage` and `renderFlutterWidget`. Check `WidgetsKit.isSupported` before calling them:
+### macOS
+
+macOS works like iOS. Add a widget extension to your app, give the app and the extension the same app group, and call `WidgetsKit.setAppGroupId` with it. `saveWidgetData` then writes to the group's shared defaults and `updateWidget(name: ...)` reloads the widget whose `kind` matches. A widget opens the app with a URL that carries a `widgetsKit` query item, and `widgetClicked` delivers it.
+
+macOS has no preview generation, scheduling, pinning or background callbacks. Those calls return `false`.
+
+### Windows and Linux
+
+There is no widget API for the plugin to call on these platforms, so nothing is refreshed. `saveWidgetData` and `getWidgetData` do work: values are kept in `widget_data.json` inside the `widgets_kit` folder of the app support directory, so a native widget provider or another process can read the same data. `saveFile`, `saveImage` and `renderFlutterWidget` write into the same folder. The supported value types are `bool`, `int`, `double` and `String`. Everything that needs a widget system returns `false`, `null` or an empty list.
+
+### Web and other platforms
+
+Calls return a safe default instead of throwing: `false` for the `bool?` methods, `null` for reads (or your `defaultValue`), an empty list for `getInstalledWidgets`, and an empty `widgetClicked` stream. Nothing reaches a platform channel.
+
+Three helpers produce a file and cannot return anything meaningful on the web, so they throw an `UnsupportedError`: `saveFile`, `saveImage` and `renderFlutterWidget`. Check `WidgetsKit.isSupported` (or run on a platform with storage) before calling them:
 
 ```dart
 if (WidgetsKit.isSupported) {

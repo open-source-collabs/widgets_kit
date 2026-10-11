@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:widgets_kit/widgets_kit.dart';
+import 'package:widgets_kit/src/file_widget_store.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
 
@@ -20,18 +21,43 @@ class WidgetsKit {
 
   /// Whether home screen widgets exist on the platform the app is running on.
   ///
-  /// This is `true` on Android and iOS only. On every other platform, including the web, the
+  /// This is `true` on Android, iOS and macOS. On every other platform, including the web, the
   /// plugin does nothing: calls that return a value complete with a safe default (`false`,
-  /// `null`, or an empty list) and never reach a platform. The helpers that must produce a
-  /// file ([saveFile], [saveImage] and [renderFlutterWidget]) throw an [UnsupportedError]
-  /// instead, so check this first.
+  /// `null`, or an empty list) and never reach a platform. On Windows and Linux, saved data is
+  /// kept in a JSON file. The helpers that must produce a file ([saveFile], [saveImage] and
+  /// [renderFlutterWidget]) throw an [UnsupportedError] on the web and anywhere else with no
+  /// storage, so check this first.
   static bool get isSupported =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  /// Windows and Linux have no home screen widget API this plugin can reach, but data and files
+  /// can still be saved to disk for a native widget provider to read.
+  static bool get _usesFileStore =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
+  /// Replaces the folder the data file and saved files live in. For tests only.
+  @visibleForTesting
+  static Directory? debugStorageDirectory;
+
+  static Future<Directory> _storageDirectory() async {
+    final override = debugStorageDirectory;
+    if (override != null) {
+      return override;
+    }
+    final support = await getApplicationSupportDirectory();
+    return Directory('${support.path}/widgets_kit');
+  }
+
+  static Future<FileWidgetStore> _fileStore() async =>
+      FileWidgetStore(await _storageDirectory());
 
   static Never _unsupported(String method) => throw UnsupportedError(
-    'WidgetsKit.$method needs Android or iOS. Check WidgetsKit.isSupported first.',
+    'WidgetsKit.$method needs Android, iOS or macOS. Check WidgetsKit.isSupported first.',
   );
 
   /// Save [data] to the Widget Storage
@@ -43,7 +69,7 @@ class WidgetsKit {
     bool deleteFile = true,
     String? appGroupId,
   }) async {
-    if (!isSupported) return false;
+    if (!isSupported && !_usesFileStore) return false;
     if (deleteFile && data == null) {
       final raw = await getWidgetData<dynamic>(id, appGroupId: appGroupId);
       if (raw is String && _isWidgetsKitManagedFilePath(raw)) {
@@ -63,6 +89,9 @@ class WidgetsKit {
       'data': data,
       if (appGroupId != null) 'appGroupId': appGroupId,
     };
+    if (_usesFileStore) {
+      return (await _fileStore()).save(id, data);
+    }
     return _channel.invokeMethod<bool>('saveWidgetData', arguments);
   }
 
@@ -274,8 +303,12 @@ class WidgetsKit {
     String id, {
     T? defaultValue,
     String? appGroupId,
-  }) {
-    if (!isSupported) return Future.value(defaultValue);
+  }) async {
+    if (_usesFileStore) {
+      final value = await (await _fileStore()).get(id);
+      return value == null ? defaultValue : value as T?;
+    }
+    if (!isSupported) return defaultValue;
     final arguments = <String, dynamic>{
       'id': id,
       'defaultValue': defaultValue,
@@ -428,14 +461,15 @@ class WidgetsKit {
     String extension = 'bin',
     String? appGroupId,
   }) async {
-    if (!isSupported) _unsupported('saveFile');
+    if (!isSupported && !_usesFileStore) _unsupported('saveFile');
     final ext = _normalizeExtension(extension);
     _validateKey(key);
 
     try {
       late final String? directory;
       // coverage:ignore-start
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS) {
         final PathProviderFoundation provider = PathProviderFoundation();
         final resolvedGroupId = appGroupId ?? WidgetsKit.groupId;
         assert(
@@ -454,10 +488,14 @@ class WidgetsKit {
         }
       } else {
         // coverage:ignore-end
-        directory = (await getApplicationSupportDirectory()).path;
+        directory = _usesFileStore
+            ? null
+            : (await getApplicationSupportDirectory()).path;
       }
 
-      final String path = '$directory/widgets_kit/$key.$ext';
+      final String path = _usesFileStore
+          ? '${(await _storageDirectory()).path}/$key.$ext'
+          : '$directory/widgets_kit/$key.$ext';
       final File file = File(path);
       if (!await file.exists()) {
         await file.create(recursive: true);
@@ -481,7 +519,7 @@ class WidgetsKit {
     ImageConfiguration configuration = ImageConfiguration.empty,
     String? appGroupId,
   }) async {
-    if (!isSupported) _unsupported('saveImage');
+    if (!isSupported && !_usesFileStore) _unsupported('saveImage');
     _validateKey(key);
     final completer = Completer<Uint8List>();
     final stream = imageProvider.resolve(configuration);
@@ -540,7 +578,7 @@ class WidgetsKit {
     double? pixelRatio,
     String? appGroupId,
   }) async {
-    if (!isSupported) _unsupported('renderFlutterWidget');
+    if (!isSupported && !_usesFileStore) _unsupported('renderFlutterWidget');
     pixelRatio ??=
         PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
 
