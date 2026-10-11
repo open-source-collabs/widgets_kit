@@ -21,6 +21,8 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -37,7 +39,9 @@ class WidgetsKitPlugin :
 
   private var activity: Activity? = null
   private var receiver: BroadcastReceiver? = null
-  private val doubleLongPrefix: String = "widgets_kit.double."
+  private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+  private fun dataStore() = WidgetDataStore(getData(context))
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "widgets_kit")
@@ -46,6 +50,7 @@ class WidgetsKitPlugin :
     eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "widgets_kit/updates")
     eventChannel.setStreamHandler(this)
     context = flutterPluginBinding.applicationContext
+    scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     WidgetsKitPreviews.registerAll(context)
   }
@@ -54,30 +59,22 @@ class WidgetsKitPlugin :
     when (call.method) {
       "saveWidgetData" -> {
         if (call.hasArgument("id") && call.hasArgument("data")) {
-          val id = call.argument<String>("id")
+          val id = call.argument<String>("id")!!
           val data = call.argument<Any>("data")
-          val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
-          if (data != null) {
-            prefs.putBoolean("$doubleLongPrefix$id", data is Double)
-            when (data) {
-              is Boolean -> prefs.putBoolean(id, data)
-              is Float -> prefs.putFloat(id, data)
-              is String -> prefs.putString(id, data)
-              is Double -> prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
-              is Int -> prefs.putInt(id, data)
-              is Long -> prefs.putLong(id, data)
-              else ->
-                  result.error(
-                      "-10",
-                      "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long",
-                      IllegalArgumentException(),
-                  )
+          scope.launch {
+            val outcome = dataStore().save(id, data)
+            withContext(Dispatchers.Main) {
+              when (outcome) {
+                is WidgetDataStore.SaveOutcome.Saved -> result.success(outcome.persisted)
+                is WidgetDataStore.SaveOutcome.InvalidType ->
+                    result.error(
+                        "-10",
+                        "Invalid Type ${outcome.typeName}. Supported types are Boolean, Float, String, Double, Long",
+                        IllegalArgumentException(),
+                    )
+              }
             }
-          } else {
-            prefs.remove(id)
-            prefs.remove("$doubleLongPrefix$id")
           }
-          result.success(prefs.commit())
         } else {
           result.error(
               "-1",
@@ -88,17 +85,11 @@ class WidgetsKitPlugin :
       }
       "getWidgetData" -> {
         if (call.hasArgument("id")) {
-          val id = call.argument<String>("id")
+          val id = call.argument<String>("id")!!
           val defaultValue = call.argument<Any>("defaultValue")
-
-          val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-
-          val value = prefs.all[id] ?: defaultValue
-
-          if (value is Long && prefs.getBoolean("$doubleLongPrefix$id", false)) {
-            result.success(java.lang.Double.longBitsToDouble(value))
-          } else {
-            result.success(value)
+          scope.launch {
+            val value = dataStore().get(id, defaultValue)
+            withContext(Dispatchers.Main) { result.success(value) }
           }
         } else {
           result.error(
@@ -319,6 +310,7 @@ class WidgetsKitPlugin :
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    scope.cancel()
   }
 
   companion object {
