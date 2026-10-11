@@ -1,0 +1,108 @@
+//
+//  WidgetsKitExample.swift
+//  WidgetsKitExample
+//
+//  Created by Anton Borries on 04.10.20.
+//
+
+import SwiftUI
+import WidgetKit
+
+private let widgetGroupId = "group.com.widgetskit.exampleWidgetsKit"
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> ExampleEntry {
+    ExampleEntry(date: Date(), title: "Placeholder Title", message: "Placeholder Message")
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (ExampleEntry) -> Void) {
+    let data = UserDefaults.init(suiteName: widgetGroupId)
+    let title = data?.string(forKey: "title") ?? ""
+    let message = data?.string(forKey: "message") ?? ""
+    // The gallery calls this with `isPreview` before any data was saved.
+    let entry = ExampleEntry(
+      date: Date(),
+      title: title.isEmpty ? (context.isPreview ? "Hello" : "No Title Set") : title,
+      message: message.isEmpty ? (context.isPreview ? "Preview data" : "No Message Set") : message)
+    completion(entry)
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+    getSnapshot(in: context) { (entry) in
+      let timeline = Timeline(entries: [entry], policy: .atEnd)
+      completion(timeline)
+    }
+  }
+}
+
+struct ExampleEntry: TimelineEntry {
+  let date: Date
+  let title: String
+  let message: String
+}
+
+struct WidgetsKitExampleEntryView: View {
+  var entry: Provider.Entry
+  let data = UserDefaults.init(suiteName: widgetGroupId)
+  let iconPath: String?
+
+  init(entry: Provider.Entry) {
+    self.entry = entry
+    iconPath = data?.string(forKey: "dashIcon")
+
+  }
+
+  var body: some View {
+    VStack.init(
+      alignment: .center,
+      spacing: nil,
+      content: {
+        if #available(iOSApplicationExtension 17, *) {
+          Button(
+            intent: BackgroundIntent(
+              url: URL(string: "widgetsKitExample://titleClicked"), appGroup: widgetGroupId)
+          ) {
+            Text(entry.title).bold().font(
+              .title)
+          }.buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          Text(entry.title).bold().font(
+            .title
+          ).frame(
+            maxWidth: .infinity, alignment: .leading)
+        }
+        Text(entry.message)
+          .font(.body)
+          .widgetURL(URL(string: "widgetsKitExample://message?message=\(entry.message)&widgetsKit"))
+          .frame(maxWidth: .infinity, alignment: .leading)
+        if iconPath != nil {
+          Image(uiImage: UIImage(contentsOfFile: iconPath!)!).resizable()
+            .scaledToFill()
+            .frame(width: 64, height: 64)
+        }
+      }
+    )
+  }
+}
+
+@main
+struct WidgetsKitExample: Widget {
+  let kind: String = "WidgetsKitExample"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      WidgetsKitExampleEntryView(entry: entry)
+    }
+    .configurationDisplayName("My Widget")
+    .description("This is an example widget.")
+  }
+}
+
+struct WidgetsKitExample_Previews: PreviewProvider {
+  static var previews: some View {
+    WidgetsKitExampleEntryView(
+      entry: ExampleEntry(date: Date(), title: "Example Title", message: "Example Message")
+    )
+    .previewContext(WidgetPreviewContext(family: .systemSmall))
+  }
+}

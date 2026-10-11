@@ -1,0 +1,120 @@
+package com.widgetskit.widgets_kit_example.glance
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceId
+import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.provideContent
+import androidx.glance.background
+import androidx.glance.currentState
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.padding
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import com.widgetskit.widgets_kit.WidgetsKitBackgroundIntent
+import com.widgetskit.widgets_kit.WidgetsKitGlanceState
+import com.widgetskit.widgets_kit.WidgetsKitGlanceStateDefinition
+import com.widgetskit.widgets_kit.WidgetsKitPlugin
+import com.widgetskit.widgets_kit.actionStartActivity
+import com.widgetskit.widgets_kit_example.MainActivity
+
+class WidgetsKitGlanceAppWidget : GlanceAppWidget() {
+
+  /** Needed for Updating */
+  override val stateDefinition = WidgetsKitGlanceStateDefinition()
+
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    provideContent { GlanceContent(context, currentState()) }
+  }
+
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      GlanceContent(
+          context,
+          WidgetsKitGlanceState(WidgetsKitPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  @Composable
+  private fun GlanceContent(
+      context: Context,
+      currentState: WidgetsKitGlanceState,
+      preview: Boolean = false,
+  ) {
+    val data = currentState.preferences
+    val imagePath = data.getString("dashIcon", null)
+
+    val title = data.getString("title", if (preview) "Hello" else "")!!
+    val message = data.getString("message", if (preview) "Preview data" else "")!!
+
+    Box(
+        modifier =
+            GlanceModifier.background(Color.White)
+                .padding(16.dp)
+                .clickable(onClick = actionStartActivity<MainActivity>(context))
+    ) {
+      Column(
+          modifier = GlanceModifier.fillMaxSize(),
+          verticalAlignment = Alignment.Vertical.Top,
+          horizontalAlignment = Alignment.Horizontal.Start,
+      ) {
+        Text("Glance")
+        Text(
+            title,
+            style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
+            modifier = GlanceModifier.clickable(onClick = actionRunCallback<InteractiveAction>()),
+        )
+        Text(
+            message,
+            style = TextStyle(fontSize = 18.sp),
+            modifier =
+                GlanceModifier.clickable(
+                    onClick =
+                        actionStartActivity<MainActivity>(
+                            context,
+                            Uri.parse("widgetsKitExample://message?message=$message"),
+                        )
+                ),
+        )
+        if (!preview) {
+          imagePath?.let {
+            val bitmap = BitmapFactory.decodeFile(it)
+            Image(androidx.glance.ImageProvider(bitmap), null)
+          }
+        }
+      }
+    }
+  }
+}
+
+class InteractiveAction : ActionCallback {
+  override suspend fun onAction(
+      context: Context,
+      glanceId: GlanceId,
+      parameters: ActionParameters,
+  ) {
+    val backgroundIntent =
+        WidgetsKitBackgroundIntent.getBroadcast(
+            context,
+            Uri.parse("widgetsKitExample://titleClicked"),
+        )
+    backgroundIntent.send()
+  }
+}
