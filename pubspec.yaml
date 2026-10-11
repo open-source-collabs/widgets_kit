@@ -3,6 +3,12 @@ description: Send data from Flutter to native Android and iOS home screen widget
 version: 0.1.0
 repository: https://github.com/open-source-collabs/widgets_kit
 issue_tracker: https://github.com/open-source-collabs/widgets_kit/issues
+screenshots:
+  - description: 'The example home screen widget in the iOS widget gallery.'
+    path: screenshots/widget-gallery.png
+  - description: 'The example widget placed on an iOS home screen.'
+    path: screenshots/home-screen.png
+
 topics:
   - home-screen-widget
   - native
