@@ -3,6 +3,8 @@
 - Initial release of widgets_kit, a fork of [home_widget](https://github.com/ABausG/home_widget) 0.10.0 by Anton Borries (BSD-3-Clause).
 - Renamed the package, the Dart API (`HomeWidget` is now `WidgetsKit`), the Android package (`com.widgetskit.widgets_kit`), the iOS plugin and the method channels, so it can be installed beside home_widget.
 - Removed the CLI and generator packages. Only the core plugin is included.
+- Fixed `saveWidgetData` on Android: the disk write no longer runs on the platform main thread, which could cause ANRs, and an unsupported value type no longer replies twice.
+- Fixed Android background callbacks not starting when the work resumes in a process where the Flutter loader was never initialised.
 
 ---
 

@@ -53,6 +53,15 @@ What differs from home_widget:
 - A different package name, Dart API (`WidgetsKit`), Android package and iOS plugin, so both can be installed in one app.
 - Only the core plugin. The CLI and the generator packages are not included.
 
+## Migrating from home_widget
+
+widgets_kit is not a drop-in replacement. Change these when you switch:
+
+- Imports and calls: `package:home_widget/home_widget.dart` becomes `package:widgets_kit/widgets_kit.dart`, and `HomeWidget.` becomes `WidgetsKit.`.
+- Android: the shared preferences file is now `WidgetsKitPreferences` (it was `HomeWidgetPreferences`). Native widget code that reads saved data must open the new name, and data saved under the old name is not carried over.
+- Android: classes moved to the package `com.widgetskit.widgets_kit`, so manifest entries that name them need the new package.
+- iOS: the plugin, the Swift package product (`widgets-kit`) and the app group handling use the new names.
+
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE).

@@ -63,16 +63,25 @@ class WidgetsKitBackgroundWorker(private val context: Context, workerParams: Wor
       )
     }
 
-    val callbackInfo =
-        FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
-            ?: throw IllegalStateException("Failed to lookup callback information")
-
+    // Work can resume in a process the broadcast receiver never ran in, for example after
+    // WorkManager restarts pending work. The native library and the callback table are only
+    // available once the loader has initialised, and Flutter requires that on the main thread.
     withContext(Dispatchers.Main) {
+      val loader = FlutterInjector.instance().flutterLoader()
+      if (!loader.initialized()) {
+        loader.startInitialization(context.applicationContext)
+        loader.ensureInitializationComplete(context.applicationContext, null)
+      }
+
+      val callbackInfo =
+          FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+              ?: throw IllegalStateException("Failed to lookup callback information")
+
       engine = FlutterEngine(context)
       val callback =
           DartExecutor.DartCallback(
               context.assets,
-              FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+              loader.findAppBundlePath(),
               callbackInfo,
           )
       engine?.dartExecutor?.executeDartCallback(callback)
