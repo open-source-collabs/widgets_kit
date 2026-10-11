@@ -17,7 +17,13 @@ Future<void> callbackDispatcher() async {
         PluginUtilities.getCallbackFromHandle(
               CallbackHandle.fromRawHandle(args[0] as int),
             )
-            as FutureOr<void> Function(Uri?);
+            as FutureOr<void> Function(Uri?)?;
+    if (callback == null) {
+      // The handle no longer resolves, for example after the app was updated and the
+      // function moved. There is nothing to call, and throwing here would only surface as
+      // an unhandled error in the background engine.
+      return;
+    }
 
     final rawUri = args[1] as String?;
 

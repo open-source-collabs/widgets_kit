@@ -212,9 +212,18 @@ public class WidgetsKitPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
         return
       }
       if #available(iOS 17.0, *) {
-        let callbackHandles = call.arguments as! [Int64]
-        let dispatcher = callbackHandles[0]
-        let callback = callbackHandles[1]
+        guard let handles = call.arguments as? [Any], handles.count == 2,
+          let dispatcher = (handles[0] as? NSNumber)?.int64Value,
+          let callback = (handles[1] as? NSNumber)?.int64Value
+        else {
+          result(
+            FlutterError(
+              code: "-9",
+              message:
+                "registerBackgroundCallback needs the handles of top-level functions marked @pragma('vm:entry-point')",
+              details: nil))
+          return
+        }
         let preferences = UserDefaults.init(suiteName: WidgetsKitPlugin.groupId)
         preferences?.setValue(dispatcher, forKey: WidgetsKitBackgroundWorker.dispatcherKey)
         preferences?.setValue(callback, forKey: WidgetsKitBackgroundWorker.callbackKey)

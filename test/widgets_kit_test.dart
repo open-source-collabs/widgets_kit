@@ -579,6 +579,19 @@ void main() {
     expect(argument[1], callbackHandle);
   });
 
+  test('Register Interactivity Callback rejects a closure', () async {
+    await expectLater(
+      WidgetsKit.registerInteractivityCallback((Uri? uri) {}),
+      throwsArgumentError,
+    );
+
+    expect(
+      passedArguments.isCompleted,
+      isFalse,
+      reason: 'a callback without a handle must not reach the platform',
+    );
+  });
+
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

@@ -5,6 +5,8 @@
 - Removed the CLI and generator packages. Only the core plugin is included.
 - Fixed `saveWidgetData` on Android: the disk write no longer runs on the platform main thread, which could cause ANRs, and an unsupported value type no longer replies twice.
 - Fixed Android background callbacks not starting when the work resumes in a process where the Flutter loader was never initialised.
+- Fixed `registerInteractivityCallback` crashing the app on Android and iOS when given a closure or instance method. Dart now throws an `ArgumentError`, and both native sides return an error instead of force-casting a `null` handle.
+- The background dispatcher no longer throws when a stored callback handle can no longer be resolved.
 
 ---
 

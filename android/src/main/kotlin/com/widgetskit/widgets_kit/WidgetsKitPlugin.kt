@@ -197,8 +197,16 @@ class WidgetsKitPlugin :
         return result.success(null)
       }
       "registerBackgroundCallback" -> {
-        val dispatcher = ((call.arguments as Iterable<*>).toList()[0] as Number).toLong()
-        val callback = ((call.arguments as Iterable<*>).toList()[1] as Number).toLong()
+        val handles = (call.arguments as? Iterable<*>)?.toList()
+        val dispatcher = (handles?.getOrNull(0) as? Number)?.toLong()
+        val callback = (handles?.getOrNull(1) as? Number)?.toLong()
+        if (dispatcher == null || callback == null) {
+          return result.error(
+              "-9",
+              "registerBackgroundCallback needs the handles of top-level functions marked @pragma('vm:entry-point')",
+              IllegalArgumentException(),
+          )
+        }
         saveCallbackHandle(context, dispatcher, callback)
         return result.success(true)
       }

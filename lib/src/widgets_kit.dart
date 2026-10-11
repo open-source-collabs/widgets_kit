@@ -320,12 +320,25 @@ class WidgetsKit {
   /// Register a callback that gets called when clicked on a specific View in a WidgetsKit
   /// This enables having Interactive Widgets that can call Dart Code
   /// More Info on setting this up in the README
+  ///
+  /// [callback] must be a top-level or static function, marked with
+  /// `@pragma('vm:entry-point')`. A closure or an instance method cannot be looked up again
+  /// when the app is started in the background, so it throws an [ArgumentError].
   static Future<bool?> registerInteractivityCallback(
     FutureOr<void> Function(Uri?) callback,
-  ) {
+  ) async {
+    final callbackHandle = ui.PluginUtilities.getCallbackHandle(callback);
+    if (callbackHandle == null) {
+      throw ArgumentError.value(
+        callback,
+        'callback',
+        'must be a top-level or static function marked '
+            "@pragma('vm:entry-point')",
+      );
+    }
     final args = <dynamic>[
       ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
+      callbackHandle.toRawHandle(),
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
